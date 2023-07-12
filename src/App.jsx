@@ -8,24 +8,48 @@ import {
   Input,
   SimpleGrid,
   Text,
-} from '@chakra-ui/react';
-import { Alchemy, Network, Utils } from 'alchemy-sdk';
-import { useState } from 'react';
+} from "@chakra-ui/react";
+import { Alchemy, Network, Utils } from "alchemy-sdk";
+import { useEffect, useState } from "react";
+import Loader from "./components/Loader";
+import { MyHeader } from "./components";
+import { useGlobalContext } from "./context";
 
 function App() {
-  const [userAddress, setUserAddress] = useState('');
+  const [userAddress, setUserAddress] = useState("");
   const [results, setResults] = useState([]);
   const [hasQueried, setHasQueried] = useState(false);
   const [tokenDataObjects, setTokenDataObjects] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const { walletAddress } = useGlobalContext();
 
   async function getTokenBalance() {
+    setIsLoading(true);
     const config = {
-      apiKey: '<-- COPY-PASTE YOUR ALCHEMY API KEY HERE -->',
+      apiKey: "ezHgf3abVB88qABx5_ESSyd6gYmNAMT7",
       network: Network.ETH_MAINNET,
     };
+    const addressRegex = new RegExp("0x[0-9a-fA-F]{40}");
+    let addr;
+
+    if (userAddress == "") {
+      addr = walletAddress;
+    } else {
+
+      addr = userAddress;
+    }
+    if (addr.includes('.eth')) {
+      console.log('ENS');
+    }
+    if (!addr || !addr.match(addressRegex)) {
+      console.log(addr);
+      alert("Invalid address !!!");
+      setIsLoading(false);
+      return;
+    }
 
     const alchemy = new Alchemy(config);
-    const data = await alchemy.core.getTokenBalances(userAddress);
+    const data = await alchemy.core.getTokenBalances(addr);
 
     setResults(data);
 
@@ -40,18 +64,23 @@ function App() {
 
     setTokenDataObjects(await Promise.all(tokenDataPromises));
     setHasQueried(true);
+    setIsLoading(false);
   }
   return (
     <Box w="100vw">
+      <MyHeader />
+      {!hasQueried && <div className=" h-24" />}
       <Center>
         <Flex
-          alignItems={'center'}
+          alignItems={"center"}
           justifyContent="center"
-          flexDirection={'column'}
+          flexDirection={"column"}
         >
+          <div className=" pt-5" />
           <Heading mb={0} fontSize={36}>
             ERC-20 Token Indexer
           </Heading>
+          <div className=" pt-2" />
           <Text>
             Plug in an address and this website will return all of its ERC-20
             token balances!
@@ -62,13 +91,14 @@ function App() {
         w="100%"
         flexDirection="column"
         alignItems="center"
-        justifyContent={'center'}
+        justifyContent={"center"}
       >
         <Heading mt={42}>
           Get all the ERC-20 token balances of this address:
         </Heading>
         <Input
           onChange={(e) => setUserAddress(e.target.value)}
+          placeholder={walletAddress ?? ""}
           color="black"
           w="600px"
           textAlign="center"
@@ -82,34 +112,40 @@ function App() {
 
         <Heading my={36}>ERC-20 token balances:</Heading>
 
-        {hasQueried ? (
-          <SimpleGrid w={'90vw'} columns={4} spacing={24}>
+        {isLoading ? (
+          <Loader />
+        ) : hasQueried ? (
+          <SimpleGrid w={"90vw"} columns={4} spacing={24}>
             {results.tokenBalances.map((e, i) => {
               return (
                 <Flex
-                  flexDir={'column'}
+                  flexDir={"column"}
                   color="white"
                   bg="blue"
-                  w={'20vw'}
+                  w={"20vw"}
                   key={e.id}
                 >
-                  <Box>
-                    <b>Symbol:</b> ${tokenDataObjects[i].symbol}&nbsp;
-                  </Box>
-                  <Box>
-                    <b>Balance:</b>&nbsp;
-                    {Utils.formatUnits(
-                      e.tokenBalance,
-                      tokenDataObjects[i].decimals
-                    )}
-                  </Box>
+                  <div className=" pl-2">
+                    <Box>
+                      <b>Symbol:</b> ${tokenDataObjects[i].symbol}&nbsp;
+                    </Box>
+                    <Box>
+                      <b>Balance:</b>&nbsp;
+                      {Number(
+                        Utils.formatUnits(
+                          e.tokenBalance,
+                          tokenDataObjects[i].decimals
+                        )
+                      ).toFixed(3)}
+                    </Box>
+                  </div>
                   <Image src={tokenDataObjects[i].logo} />
                 </Flex>
               );
             })}
           </SimpleGrid>
         ) : (
-          'Please make a query! This may take a few seconds...'
+          "Please make a query! This may take a few seconds..."
         )}
       </Flex>
     </Box>
